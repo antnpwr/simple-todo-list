@@ -156,6 +156,136 @@ describe('Todo API Endpoints', () => {
     });
   });
 
+  describe('PATCH /api/todos/:id', () => {
+    test('should edit todo text', async () => {
+      // Create a todo first
+      const createResponse = await request(app)
+        .post('/api/todos')
+        .send({ text: 'Original text' });
+      
+      const todoId = createResponse.body.id;
+      
+      // Edit the todo
+      const response = await request(app)
+        .patch(`/api/todos/${todoId}`)
+        .send({ text: 'Updated text' });
+      
+      expect(response.status).toBe(200);
+      expect(response.body.text).toBe('Updated text');
+      expect(response.body.id).toBe(todoId);
+    });
+
+    test('should trim whitespace from edited text', async () => {
+      // Create a todo
+      const createResponse = await request(app)
+        .post('/api/todos')
+        .send({ text: 'Original text' });
+      
+      const todoId = createResponse.body.id;
+      
+      // Edit with whitespace
+      const response = await request(app)
+        .patch(`/api/todos/${todoId}`)
+        .send({ text: '  Updated with spaces  ' });
+      
+      expect(response.status).toBe(200);
+      expect(response.body.text).toBe('Updated with spaces');
+    });
+
+    test('should preserve other properties when editing', async () => {
+      // Create a todo
+      const createResponse = await request(app)
+        .post('/api/todos')
+        .send({ text: 'Original text' });
+      
+      const todoId = createResponse.body.id;
+      const originalId = createResponse.body.id;
+      const originalCompleted = createResponse.body.completed;
+      
+      // Edit the todo
+      const response = await request(app)
+        .patch(`/api/todos/${todoId}`)
+        .send({ text: 'Updated text' });
+      
+      expect(response.body.id).toBe(originalId);
+      expect(response.body.completed).toBe(originalCompleted);
+    });
+
+    test('should add updatedAt timestamp', async () => {
+      // Create a todo
+      const createResponse = await request(app)
+        .post('/api/todos')
+        .send({ text: 'Original text' });
+      
+      const todoId = createResponse.body.id;
+      
+      // Edit the todo
+      const response = await request(app)
+        .patch(`/api/todos/${todoId}`)
+        .send({ text: 'Updated text' });
+      
+      expect(response.body).toHaveProperty('updatedAt');
+      expect(typeof response.body.updatedAt).toBe('string');
+    });
+
+    test('should return 400 if text is missing', async () => {
+      // Create a todo
+      const createResponse = await request(app)
+        .post('/api/todos')
+        .send({ text: 'Original text' });
+      
+      const todoId = createResponse.body.id;
+      
+      const response = await request(app)
+        .patch(`/api/todos/${todoId}`)
+        .send({});
+      
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error', 'Todo text is required');
+    });
+
+    test('should return 400 if text is empty', async () => {
+      // Create a todo
+      const createResponse = await request(app)
+        .post('/api/todos')
+        .send({ text: 'Original text' });
+      
+      const todoId = createResponse.body.id;
+      
+      const response = await request(app)
+        .patch(`/api/todos/${todoId}`)
+        .send({ text: '' });
+      
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error', 'Todo text is required');
+    });
+
+    test('should return 400 if text is only whitespace', async () => {
+      // Create a todo
+      const createResponse = await request(app)
+        .post('/api/todos')
+        .send({ text: 'Original text' });
+      
+      const todoId = createResponse.body.id;
+      
+      const response = await request(app)
+        .patch(`/api/todos/${todoId}`)
+        .send({ text: '   ' });
+      
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error', 'Todo text is required');
+    });
+
+    test('should return 404 if todo not found', async () => {
+      const response = await request(app)
+        .patch('/api/todos/999999')
+        .send({ text: 'Updated text' });
+      
+      expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty('error', 'Todo not found');
+    });
+  });
+
   describe('DELETE /api/todos/:id', () => {
     test('should delete a todo', async () => {
       // Create a todo

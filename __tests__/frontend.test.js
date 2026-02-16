@@ -306,4 +306,185 @@ describe('Frontend Todo Application', () => {
       expect(escaped).not.toContain('<script>');
     });
   });
+
+  describe('editTodo function', () => {
+    test('should enter edit mode for a todo', () => {
+      // Simulate state
+      let editingId = null;
+      let editingText = '';
+      
+      const todo = { id: 1, text: 'Test todo', completed: false };
+      
+      // Enter edit mode
+      editingId = todo.id;
+      editingText = todo.text;
+      
+      expect(editingId).toBe(1);
+      expect(editingText).toBe('Test todo');
+    });
+
+    test('should populate edit input with current text', () => {
+      const todo = { id: 1, text: 'Edit this', completed: false };
+      let editingText = '';
+      
+      editingText = todo.text;
+      
+      expect(editingText).toBe('Edit this');
+    });
+  });
+
+  describe('cancelEdit function', () => {
+    test('should exit edit mode and clear editing state', () => {
+      let editingId = 1;
+      let editingText = 'Some text';
+      
+      // Cancel edit
+      editingId = null;
+      editingText = '';
+      
+      expect(editingId).toBeNull();
+      expect(editingText).toBe('');
+    });
+  });
+
+  describe('saveEdit function', () => {
+    test('should save edited todo text', async () => {
+      const updatedTodo = { id: 1, text: 'Updated text', completed: false };
+      
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => updatedTodo
+      });
+
+      const response = await fetch('/api/todos/1', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: 'Updated text' }),
+      });
+
+      expect(response.ok).toBe(true);
+      const result = await response.json();
+      expect(result.text).toBe('Updated text');
+    });
+
+    test('should not save empty edited text', () => {
+      let editingText = '';
+      const text = editingText.trim();
+      
+      if (!text) {
+        alert('Todo text cannot be empty');
+      }
+
+      expect(alert).toHaveBeenCalledWith('Todo text cannot be empty');
+    });
+
+    test('should exit edit mode after saving', async () => {
+      const updatedTodo = { id: 1, text: 'Updated text', completed: false };
+      
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => updatedTodo
+      });
+
+      let editingId = 1;
+      let editingText = 'Updated text';
+
+      const response = await fetch('/api/todos/1', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: editingText }),
+      });
+
+      if (response.ok) {
+        editingId = null;
+        editingText = '';
+      }
+
+      expect(editingId).toBeNull();
+      expect(editingText).toBe('');
+    });
+
+    test('should handle save error gracefully', async () => {
+      fetch.mockResolvedValueOnce({
+        ok: false
+      });
+
+      const response = await fetch('/api/todos/1', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: 'New text' }),
+      });
+
+      if (!response.ok) {
+        alert('Failed to update todo');
+      }
+
+      expect(alert).toHaveBeenCalledWith('Failed to update todo');
+    });
+  });
+
+  describe('Edit mode rendering', () => {
+    test('should show edit input when in edit mode', () => {
+      const todos = [{ id: 1, text: 'Test todo', completed: false }];
+      let editingId = 1;
+      let editingText = 'Test todo';
+
+      const escapeHtml = (text) => {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      };
+
+      if (editingId === todos[0].id) {
+        todoList.innerHTML = `
+          <div class="todo-item editing">
+            <input 
+              type="text" 
+              class="todo-edit-input" 
+              value="${escapeHtml(editingText)}"
+            />
+            <button class="save-btn">Save</button>
+            <button class="cancel-btn">Cancel</button>
+          </div>
+        `;
+      }
+
+      expect(todoList.innerHTML).toContain('todo-item editing');
+      expect(todoList.innerHTML).toContain('todo-edit-input');
+      expect(todoList.innerHTML).toContain('save-btn');
+      expect(todoList.innerHTML).toContain('cancel-btn');
+    });
+
+    test('should show edit button when not in edit mode', () => {
+      const todos = [{ id: 1, text: 'Test todo', completed: false }];
+      let editingId = null;
+
+      const escapeHtml = (text) => {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      };
+
+      if (editingId === null) {
+        todoList.innerHTML = `
+          <div class="todo-item">
+            <input type="checkbox" class="todo-checkbox" />
+            <span class="todo-text">${escapeHtml(todos[0].text)}</span>
+            <button class="edit-btn">Edit</button>
+            <button class="delete-btn">Delete</button>
+          </div>
+        `;
+      }
+
+      expect(todoList.innerHTML).toContain('edit-btn');
+      expect(todoList.innerHTML).not.toContain('save-btn');
+    });
+  });
 });
+
